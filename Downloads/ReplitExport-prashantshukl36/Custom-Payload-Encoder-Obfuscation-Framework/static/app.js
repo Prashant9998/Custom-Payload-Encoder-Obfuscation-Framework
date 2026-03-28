@@ -265,6 +265,8 @@ async function encodeAndTest() {
 
 function renderEncResults(results, withWAF) {
   document.getElementById('encCard').style.display='block';
+  if(document.getElementById('encEmptyState')) document.getElementById('encEmptyState').style.display='none';
+  if(document.getElementById('encTableWrap')) document.getElementById('encTableWrap').style.display='block';
   document.getElementById('encSub').textContent = results.length+' variants'+(withWAF?' \u00b7 WAF tested':'');
   var html='';
   results.forEach(function(item,i){
@@ -289,6 +291,8 @@ async function decodePayload() {
   if(!d.success){toast('Decode failed');return;}
   var result=d.result;
   document.getElementById('decCard').style.display='block';
+  if(document.getElementById('decEmptyState')) document.getElementById('decEmptyState').style.display='none';
+  if(document.getElementById('decResultWrap')) document.getElementById('decResultWrap').style.display='block';
   document.getElementById('decSub').textContent=result.total_layers+' layer(s) \u00b7 '+(result.fully_decoded?'Fully decoded':'Partial decode');
   var stepsHtml='';
   (result.steps||[]).forEach(function(s){
@@ -355,6 +359,9 @@ async function mutateAndTest(){
 
 function renderMutResults(results,withWAF){
   document.getElementById('mutCard').style.display='block';
+  if(document.getElementById('mutEmptyState')) document.getElementById('mutEmptyState').style.display='none';
+  if(document.getElementById('mutTableWrap')) document.getElementById('mutTableWrap').style.display='block';
+  if(document.getElementById('mutSub')) document.getElementById('mutSub').textContent = results.length+' variants'+(withWAF?' \u00b7 WAF tested':'');
   var html='';
   results.forEach(function(item,i){
     var r=item.r,w=item.w;
@@ -505,6 +512,7 @@ function loadSample(el){
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function escAttr(s){return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\r?\n/g,'\\n');}
 function copyText(t){navigator.clipboard.writeText(t).then(function(){toast('&#x1F4CB; Copied!');}).catch(function(){toast('Failed');});}
+function copyEl(id){var el=document.getElementById(id);if(el)copyText(el.textContent||el.innerText);}
 function toast(msg){var t=document.createElement('div');t.className='toast';t.innerHTML=msg;document.body.appendChild(t);setTimeout(function(){t.style.opacity='0';t.style.transform='translateY(10px)';setTimeout(function(){t.remove();},300);},2200);}
 
 // ═══════════════════════════ AI WAF ════════════════════════════════════════

@@ -9,6 +9,7 @@
      https://github.com/Prashant9998
 -->
 <title>Payload Obfuscation — Encoder Framework</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/app.css">
 </head>
@@ -281,11 +282,16 @@
             <button class="btn btn-d" onclick="encodeAndTest()">&#x1F680; Encode &amp; Test WAF</button>
           </div>
         </div>
-        <div>
-          <div class="card" id="encCard" style="display:none">
+        <div style="display: flex; flex-direction: column;">
+          <div class="card" id="encCard" style="flex: 1; display: flex; flex-direction: column;">
             <h3>&#x1F4CA; Results</h3>
-            <div class="sub" id="encSub"></div>
-            <div style="overflow-x:auto">
+            <div class="sub" id="encSub">Ready to encode</div>
+            <div id="encEmptyState" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align:center; padding:20px; color:var(--text3)">
+              <div style="font-size:42px;margin-bottom:16px;opacity:0.5">&#x26A1;</div>
+              <div style="font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text2)">Awaiting Payload</div>
+              <div style="font-size:12px">Enter a payload and select techniques on the left to see encoded results here.</div>
+            </div>
+            <div id="encTableWrap" style="overflow-x:auto;display:none">
               <table class="tbl">
                 <thead><tr><th>#</th><th>Status</th><th>Technique</th><th>Encoded Payload</th><th>Conf</th><th></th></tr></thead>
                 <tbody id="encBody"></tbody>
@@ -327,17 +333,24 @@
             <div id="detectOut"></div>
           </div>
         </div>
-        <div>
-          <div class="card" id="decCard" style="display:none">
+        <div style="display: flex; flex-direction: column;">
+          <div class="card" id="decCard" style="flex: 1; display: flex; flex-direction: column;">
             <h3>&#x1F4CB; Decode Steps</h3>
-            <div class="sub" id="decSub"></div>
-            <div id="decSteps"></div>
-            <div class="card" style="margin-top:14px;border-color:rgba(0,255,157,.25)">
-              <label>FINAL DECODED OUTPUT</label>
-              <pre id="decFinal" style="background:rgba(0,255,157,.04);border:1px solid rgba(0,255,157,.12);padding:11px;border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--green);word-break:break-all;white-space:pre-wrap"></pre>
-              <div style="margin-top:8px;display:flex;gap:7px">
-                <button class="cp" onclick="copyEl('decFinal')">&#x1F4CB; Copy</button>
-                <button class="btn btn-o btn-sm" onclick="sendToEncoder()">&#x26A1; Send to Encoder</button>
+            <div class="sub" id="decSub">Ready to decode</div>
+            <div id="decEmptyState" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align:center; padding:20px; color:var(--text3)">
+              <div style="font-size:42px;margin-bottom:16px;opacity:0.5">&#x1F513;</div>
+              <div style="font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text2)">Awaiting Payload</div>
+              <div style="font-size:12px">Enter an encoded payload on the left to reverse engineer the encoding layers.</div>
+            </div>
+            <div id="decResultWrap" style="display:none">
+              <div id="decSteps"></div>
+              <div class="card" style="margin-top:14px;border-color:rgba(0,255,157,.25)">
+                <label>FINAL DECODED OUTPUT</label>
+                <pre id="decFinal" style="background:rgba(0,255,157,.04);border:1px solid rgba(0,255,157,.12);padding:11px;border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--green);word-break:break-all;white-space:pre-wrap"></pre>
+                <div style="margin-top:8px;display:flex;gap:7px">
+                  <button class="cp" onclick="copyEl('decFinal')">&#x1F4CB; Copy</button>
+                  <button class="btn btn-o btn-sm" onclick="sendToEncoder()">&#x26A1; Send to Encoder</button>
+                </div>
               </div>
             </div>
           </div>
@@ -367,10 +380,16 @@
             <button class="btn btn-d" onclick="mutateAndTest()">&#x1F680; Mutate &amp; Test WAF</button>
           </div>
         </div>
-        <div>
-          <div class="card" id="mutCard" style="display:none">
+        <div style="display: flex; flex-direction: column;">
+          <div class="card" id="mutCard" style="flex: 1; display: flex; flex-direction: column;">
             <h3>&#x1F9EC; Mutation Results</h3>
-            <div style="overflow-x:auto">
+            <div class="sub" id="mutSub">Ready to mutate</div>
+            <div id="mutEmptyState" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align:center; padding:20px; color:var(--text3)">
+              <div style="font-size:42px;margin-bottom:16px;opacity:0.5">&#x1F9EC;</div>
+              <div style="font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text2)">Awaiting Payload</div>
+              <div style="font-size:12px">Enter a payload and select mutation engine techniques on the left.</div>
+            </div>
+            <div id="mutTableWrap" style="overflow-x:auto;display:none">
               <table class="tbl">
                 <thead><tr><th>#</th><th>Status</th><th>Mutation</th><th>Mutated Payload</th><th>Conf</th><th></th></tr></thead>
                 <tbody id="mutBody"></tbody>
@@ -709,8 +728,6 @@
       <div id="samplesOut"></div>
     </div>
 
-  </div><!-- /main -->
-
   <!-- AI WAF PANEL -->
   <div class="panel" id="panel-aiwaf">
     <div class="g2">
@@ -798,6 +815,8 @@
       </div>
     </div>
   </div>
+
+  </div><!-- /main -->
 
   <!-- Footer -->
   <div style="text-align:center;padding:22px 36px 30px;border-top:1px solid rgba(30,38,66,.4);margin-top:20px">
