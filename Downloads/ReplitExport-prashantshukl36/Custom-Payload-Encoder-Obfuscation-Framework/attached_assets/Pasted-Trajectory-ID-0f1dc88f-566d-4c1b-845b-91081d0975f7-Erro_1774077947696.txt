@@ -1,0 +1,60 @@
+Trajectory ID: 0f1dc88f-566d-4c1b-845b-91081d0975f7
+Error: agent executor error: could not convert a single message before hitting truncation
+(1) attached stack trace
+  -- stack trace:
+  | google3/third_party/jetski/cortex/cortex.(*CascadeManager).executeHelper.func1
+  | 	third_party/jetski/cortex/cascade_manager.go:2088
+  | google3/third_party/jetski/cortex/cortex.(*CascadeManager).executeHelper.func2
+  | 	third_party/jetski/cortex/cascade_manager.go:2136
+Wraps: (2) agent executor error
+Wraps: (3) attached stack trace
+  -- stack trace:
+  | google3/third_party/jetski/cortex/chatconverters/chatconverters.(*TrajectoryChatConverter).GetNumTokensSinceLastCheckpoint
+  | 	third_party/jetski/cortex/chatconverters/trajectory_chat_converter.go:550
+  | google3/third_party/jetski/cortex/mixins/mixins.GetConversationalHooks.NewCheckpointHook.func7.1
+  | 	third_party/jetski/cortex/executors/posthooks/checkpoint_hook.go:43
+  | google3/third_party/jetski/cortex/executors/executors.(*CascadeWrapper).ViewTrajectory
+  | 	third_party/jetski/cortex/executors/cascade_wrapper.go:258
+  | google3/third_party/jetski/cortex/mixins/mixins.GetConversationalHooks.NewCheckpointHook.func7
+  | 	third_party/jetski/cortex/executors/posthooks/checkpoint_hook.go:33
+  | google3/third_party/gemini_coder/framework/executor/executor.(*Executor).executeLoop
+  | 	third_party/gemini_coder/framework/executor/executor.go:388
+  | google3/third_party/gemini_coder/framework/executor/executor.(*Executor).Execute
+  | 	third_party/gemini_coder/framework/executor/executor.go:277
+  | google3/third_party/jetski/cortex/cortex.(*CascadeManager).executeHelper.func1
+  | 	third_party/jetski/cortex/cascade_manager.go:2053
+  | google3/third_party/jetski/cortex/cortex.(*CascadeManager).executeHelper.func2
+  | 	third_party/jetski/cortex/cascade_manager.go:2136
+Wraps: (4) attached stack trace
+  -- stack trace:
+  | google3/third_party/jetski/cortex/chatconverters/chatconverters.(*TrajectoryChatConverter).TrajectoryToChatMessagesFromNCheckpointsAgo
+  | 	third_party/jetski/cortex/chatconverters/trajectory_chat_converter.go:1135
+  | google3/third_party/jetski/cortex/chatconverters/chatconverters.(*TrajectoryChatConverter).GetNumTokensSinceLastCheckpoint
+  | 	third_party/jetski/cortex/chatconverters/trajectory_chat_converter.go:548
+  | google3/third_party/jetski/cortex/mixins/mixins.GetConversationalHooks.NewCheckpointHook.func7.1
+  | 	third_party/jetski/cortex/executors/posthooks/checkpoint_hook.go:43
+  | google3/third_party/jetski/cortex/executors/executors.(*CascadeWrapper).ViewTrajectory
+  | 	third_party/jetski/cortex/executors/cascade_wrapper.go:258
+  | google3/third_party/jetski/cortex/mixins/mixins.GetConversationalHooks.NewCheckpointHook.func7
+  | 	third_party/jetski/cortex/executors/posthooks/checkpoint_hook.go:33
+  | google3/third_party/gemini_coder/framework/executor/executor.(*Executor).executeLoop
+  | 	third_party/gemini_coder/framework/executor/executor.go:388
+  | google3/third_party/gemini_coder/framework/executor/executor.(*Executor).Execute
+  | 	third_party/gemini_coder/framework/executor/executor.go:277
+  | google3/third_party/jetski/cortex/cortex.(*CascadeManager).executeHelper.func1
+  | 	third_party/jetski/cortex/cascade_manager.go:2053
+  | [...repeated from below...]
+Wraps: (5) attached stack trace
+  -- stack trace:
+  | google3/third_party/jetski/cortex/chatconverters/chatconverters.init
+  | 	third_party/jetski/cortex/chatconverters/trajectory_chat_converter.go:44
+  | runtime.doInit1
+  | 	third_party/go/gc/src/runtime/proc.go:8105
+  | runtime.doInit
+  | 	third_party/go/gc/src/runtime/proc.go:8072
+  | runtime.main
+  | 	third_party/go/gc/src/runtime/proc.go:258
+  | runtime.goexit
+  | 	third_party/go/gc/src/runtime/asm_amd64.s:1774
+Wraps: (6) could not convert a single message before hitting truncation
+Error types: (1) *withstack.withStack (2) *errutil.withPrefix (3) *withstack.withStack (4) *withstack.withStack (5) *withstack.withStack (6) *errutil.leafError

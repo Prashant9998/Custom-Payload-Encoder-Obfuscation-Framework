@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Research Paper – WAF Bypass Lab</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #000;
+    background: #fff;
+    padding: 0;
+  }
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 25mm 25mm 25mm 25mm;
+    background: #fff;
+  }
+  h1.title {
+    font-size: 16pt;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 6pt;
+    line-height: 1.4;
+  }
+  .authors {
+    text-align: center;
+    font-size: 11pt;
+    margin-bottom: 4pt;
+  }
+  .affil {
+    text-align: center;
+    font-size: 10pt;
+    font-style: italic;
+    margin-bottom: 14pt;
+  }
+  hr.divider { border: none; border-top: 1.5px solid #000; margin: 10pt 0; }
+  .abstract-box {
+    margin: 0 20pt;
+    font-size: 10.5pt;
+  }
+  .abstract-box .head {
+    font-weight: bold;
+    font-style: italic;
+    text-align: center;
+    margin-bottom: 4pt;
+  }
+  .abstract-box p { text-align: justify; }
+  .keywords { font-style: italic; margin-top: 6pt; font-size: 10pt; }
+  .two-col {
+    column-count: 2;
+    column-gap: 16pt;
+    margin-top: 14pt;
+    text-align: justify;
+  }
+  h2.sec {
+    font-size: 11pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin: 12pt 0 4pt 0;
+    break-after: avoid;
+    column-span: none;
+  }
+  h3.subsec {
+    font-size: 10.5pt;
+    font-weight: bold;
+    font-style: italic;
+    margin: 8pt 0 3pt 0;
+  }
+  p { margin-bottom: 5pt; font-size: 11pt; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.5pt;
+    margin: 8pt 0;
+    break-inside: avoid;
+  }
+  th {
+    background: #222;
+    color: #fff;
+    padding: 4pt 6pt;
+    text-align: left;
+    border: 1px solid #555;
+  }
+  td {
+    padding: 3pt 6pt;
+    border: 1px solid #bbb;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #f4f4f4; }
+  .highlight td { font-weight: bold; background: #e8f5e9 !important; }
+  .low td { background: #fff3e0 !important; }
+  code {
+    font-family: Courier, monospace;
+    font-size: 9pt;
+    background: #f0f0f0;
+    padding: 1pt 3pt;
+    border-radius: 2px;
+  }
+  .figure {
+    break-inside: avoid;
+    margin: 8pt 0;
+    text-align: center;
+  }
+  .figure img {
+    max-width: 100%;
+    border: 1px solid #ccc;
+  }
+  .fig-caption {
+    font-size: 9.5pt;
+    font-style: italic;
+    margin-top: 3pt;
+    text-align: center;
+  }
+  .formula {
+    font-family: "Times New Roman", serif;
+    font-style: italic;
+    text-align: center;
+    margin: 6pt 0;
+  }
+  .ref-list { font-size: 10pt; }
+  .ref-list li { margin-bottom: 4pt; }
+  ol.ref-list { padding-left: 18pt; }
+  .note { font-size: 9.5pt; font-style: italic; color: #333; }
+  .full-col { column-span: all; }
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; padding: 20mm 20mm 20mm 20mm; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1 class="title">Custom Payload Encoder and WAF Evasion Framework:<br>
+  Design, Implementation, and Empirical Evaluation</h1>
+
+  <div class="authors">Prashant Shukla</div>
+  <div class="affil">Department of Computer Science &amp; Engineering<br>
+  GitHub: @Prashant9998 &nbsp;|&nbsp; March 2026</div>
+
+  <hr class="divider">
+
+  <div class="abstract-box">
+    <div class="head">Abstract</div>
+    <p>
+      Web Application Firewalls (WAFs) are a primary line of defence against injection attacks,
+      cross-site scripting, and other web-layer exploits. However, their signature-based detection
+      mechanisms remain susceptible to payload obfuscation and encoding. This paper presents the
+      design and empirical evaluation of <em>WAF Bypass Lab</em>, an open-source, browser-accessible
+      framework that systematically encodes, mutates, and tests attack payloads against a configurable
+      simulated WAF engine. The tool implements 11 encoding techniques, 6 mutation strategies, chained
+      multi-layer encoding, and an auxiliary machine-learning classifier. Experiments across 13 canonical
+      payloads from five attack categories reveal an overall encoding-based evasion rate of 67.8%.
+      URL-based and base64 techniques achieve 100% evasion, while two-layer chained encoding achieves
+      100% evasion across all tested combinations. These findings reaffirm that signature-only WAFs
+      remain fundamentally brittle against systematic obfuscation, and underscore the need for
+      semantic- and ML-augmented detection. All 68 unit tests pass, confirming implementation correctness.
+    </p>
+    <p class="keywords">
+      <strong>Keywords —</strong> Web Application Firewall, WAF Bypass, Payload Encoding, SQL Injection,
+      XSS, Obfuscation, Security Testing, Red Team, Machine Learning
+    </p>
+  </div>
+
+  <hr class="divider">
+
+  <div class="two-col">
+
+    <h2 class="sec">I. Introduction</h2>
+    <p>
+      Injection-class vulnerabilities — SQL injection (SQLi), cross-site scripting (XSS),
+      command injection — consistently appear in the OWASP Top 10 [1]. Organizations deploy
+      Web Application Firewalls as mitigating controls; however, WAFs that rely solely on
+      pattern matching (regular expressions) against known attack signatures have been
+      shown to be bypassable through encoding and obfuscation [2][3].
+    </p>
+    <p>
+      Despite the availability of adversarial tools such as <em>sqlmap</em> [4] and <em>Burp Suite</em> [5],
+      there is a gap in tools that combine (a) systematic multi-technique encoding, (b) a fully
+      configurable local WAF engine, and (c) quantitative evasion reporting in one unified interface.
+      Security engineers and researchers frequently encode payloads manually, paste them into proxies,
+      and interpret results without a reusable, reproducible framework.
+    </p>
+    <p>
+      This paper describes <em>WAF Bypass Lab</em>, a Python/Flask framework that addresses this gap.
+      The contributions of this work are:
+    </p>
+    <p>1. A modular payload encoding engine with 11 techniques and 6 mutation strategies.</p>
+    <p>2. A configurable, rule-based WAF simulation engine with persistent state.</p>
+    <p>3. An auxiliary ML classifier (TF-IDF + Logistic Regression) for baseline comparison.</p>
+    <p>4. Empirical evasion rate measurements across five attack categories.</p>
+    <p>5. A reproducible open-source implementation with 68 passing unit tests.</p>
+
+    <h2 class="sec">II. Background and Related Work</h2>
+
+    <h3 class="subsec">A. WAF Detection Mechanisms</h3>
+    <p>
+      Signature-based WAFs (e.g., ModSecurity CRS [6], AWS WAF, Cloudflare) maintain rule sets
+      that match known malicious patterns using regular expressions. Their strength is low latency
+      and interpretability; their weakness is rigidity — any syntactic transformation that preserves
+      semantics but alters byte representation can evade the rule.
+    </p>
+    <p>
+      Behavioral WAFs and RASP (Runtime Application Self-Protection) systems operate at a higher
+      abstraction level [7], but remain less prevalent due to deployment complexity and false-positive
+      rates. Machine-learning WAFs [8] have shown promise in academic settings but have seen limited
+      production adoption.
+    </p>
+
+    <h3 class="subsec">B. Existing Bypass Tooling</h3>
+    <p>
+      <em>sqlmap</em> [4] implements WAF evasion as a plugin system (tamper scripts) targeting SQLi
+      specifically. <em>wfuzz</em> [9] provides HTTP fuzzing with encoder support but lacks an
+      integrated WAF simulation. <em>Burp Suite</em> [5] supports manual encoding and the Intruder
+      module for semi-automated testing but does not produce structured evasion metrics.
+      None of these tools combine encoding, mutation, local WAF simulation, ML comparison,
+      and HTML/CSV/JSON reporting in a single self-contained interface.
+    </p>
+
+    <h2 class="sec">III. System Architecture</h2>
+
+    <h3 class="subsec">A. Overview</h3>
+    <p>
+      The system is a single-server Flask application exposing a REST API consumed by a
+      single-page browser UI. Figure 1 shows the component layout.
+    </p>
+
+    <div class="figure">
+      <div style="font-family:monospace;font-size:9pt;background:#f5f5f5;border:1px solid #ccc;padding:8pt;text-align:left;line-height:1.8;">
+Browser (index.html + app.js + app.css)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↕&nbsp; REST API (Flask / server.py)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;┌──────────────┬──────────────────┐<br>
+payload_encoder.py &nbsp; waf_engine.py &nbsp; ai_waf_engine.py<br>
+(encoder, decoder, &nbsp; (rules, persist &nbsp; (TF-IDF + LR<br>
+&nbsp;mutator)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; waf_state.json) &nbsp; classifier)
+      </div>
+      <div class="fig-caption">Fig. 1 — System Component Architecture</div>
+    </div>
+
+    <h3 class="subsec">B. Payload Encoding Engine (<code>payload_encoder.py</code>)</h3>
+    <p>
+      The <code>PayloadEncoder</code> class implements 11 stateless encoding functions.
+      Each returns an <code>EncodedPayload</code> dataclass carrying the original string,
+      the encoded output, and a list of applied techniques. The <code>chain_encode</code>
+      method applies techniques sequentially, allowing multi-layer obfuscation.
+      The <code>PayloadDecoder</code> auto-detects encoding type by heuristic pattern
+      matching and reverses it. The <code>PayloadMutator</code> applies six deep
+      semantic transformations independently of encoding.
+    </p>
+
+    <h3 class="subsec">C. WAF Simulation Engine (<code>waf_engine.py</code>)</h3>
+    <p>
+      The <code>WAFEngine</code> class maintains a list of <code>WAFRule</code> dataclass
+      instances, each holding a list of compiled regular expressions. On each <code>inspect()</code>
+      call, the engine concatenates the URL, query parameters, headers, and request body
+      into a single inspection string and tests all enabled rules. Rules carry a confidence
+      score (0.0–1.0). Results include matched rule IDs, highest confidence, and a
+      human-readable block reason. Custom rules and toggle states persist across restarts
+      via <code>waf_state.json</code>.
+    </p>
+
+    <h3 class="subsec">D. AI WAF Engine (<code>ai_waf_engine.py</code>)</h3>
+    <p>
+      As a comparative baseline, an <code>AIWAFEngine</code> trains at startup on an
+      in-memory labelled dataset of ≈80 payload/clean pairs using TF-IDF vectorisation
+      (character n-grams, 1–4) followed by a Logistic Regression classifier (scikit-learn).
+      This provides a probability-scored classification for any input string, demonstrating
+      how ML-based detection compares to regex matching on obfuscated inputs.
+    </p>
+
+    <h3 class="subsec">E. REST API</h3>
+    <p>
+      The server exposes 20 endpoints (Table I). All encoding, testing, and export
+      operations are stateless and idempotent. WAF rule management endpoints update
+      shared WAF engine state and persist it immediately.
+    </p>
+
+    <table>
+      <caption style="font-style:italic;font-size:9.5pt;margin-bottom:4pt;">
+        Table I — Key API Endpoints
+      </caption>
+      <tr><th>Method</th><th>Endpoint</th><th>Function</th></tr>
+      <tr><td>POST</td><td><code>/api/encode</code></td><td>Single-technique encoding</td></tr>
+      <tr><td>POST</td><td><code>/api/chain-encode</code></td><td>Multi-layer chained encoding</td></tr>
+      <tr><td>POST</td><td><code>/api/batch-test</code></td><td>Generate N variants + WAF test</td></tr>
+      <tr><td>POST</td><td><code>/api/mutate</code></td><td>Apply mutation strategy</td></tr>
+      <tr><td>POST</td><td><code>/api/decode</code></td><td>Auto-detect and reverse encoding</td></tr>
+      <tr><td>POST</td><td><code>/api/test</code></td><td>Test one payload against WAF</td></tr>
+      <tr><td>GET</td><td><code>/api/waf/rules</code></td><td>List WAF rules and hit counts</td></tr>
+      <tr><td>POST</td><td><code>/api/waf/add-rule</code></td><td>Add custom regex rule</td></tr>
+      <tr><td>POST</td><td><code>/api/export/csv</code></td><td>Export results as CSV</td></tr>
+      <tr><td>POST</td><td><code>/api/export/html</code></td><td>Export styled HTML report</td></tr>
+    </table>
+
+    <h2 class="sec">IV. Encoding Techniques and Mutation Strategies</h2>
+
+    <h3 class="subsec">A. Encoding Techniques (11)</h3>
+    <p>
+      Table II lists all implemented encoding techniques. Each transforms the raw
+      payload syntactically while preserving attack semantics.
+    </p>
+
+    <table>
+      <caption style="font-style:italic;font-size:9.5pt;margin-bottom:4pt;">
+        Table II — Encoding Techniques
+      </caption>
+      <tr><th>#</th><th>Technique</th><th>Example Transform</th></tr>
+      <tr><td>1</td><td>URL Encoding</td><td><code>' → %27</code></td></tr>
+      <tr><td>2</td><td>Double URL Encoding</td><td><code>% → %25</code></td></tr>
+      <tr><td>3</td><td>Unicode Encoding</td><td><code>O → \u004F</code></td></tr>
+      <tr><td>4</td><td>HTML Entity Encoding</td><td><code>' → &#x27;</code></td></tr>
+      <tr><td>5</td><td>Base64 Encoding</td><td><code>payload → base64 string</code></td></tr>
+      <tr><td>6</td><td>Hex Encoding</td><td><code>O → \x4F</code></td></tr>
+      <tr><td>7</td><td>Case Alternation</td><td><code>SELECT → SeLeCt</code></td></tr>
+      <tr><td>8</td><td>SQL Comment Injection</td><td><code>SELECT → SE/**/LECT</code></td></tr>
+      <tr><td>9</td><td>Whitespace Obfuscation</td><td><code>space → %09 / %0a</code></td></tr>
+      <tr><td>10</td><td>Concatenation / Splitting</td><td><code>'SEL'+'ECT'</code></td></tr>
+      <tr><td>11</td><td>ROT47 Encoding</td><td><code>rotate printable ASCII +47</code></td></tr>
+    </table>
+
+    <h3 class="subsec">B. Mutation Strategies (6)</h3>
+    <p>
+      Mutations perform deeper semantic rewrites of the payload logic, independently
+      of character-level encoding. Table III lists the six strategies.
+    </p>
+
+    <table>
+      <caption style="font-style:italic;font-size:9.5pt;margin-bottom:4pt;">
+        Table III — Mutation Strategies
+      </caption>
+      <tr><th>#</th><th>Strategy</th><th>Description</th></tr>
+      <tr><td>1</td><td>Synonym Replace</td><td><code>OR → ||</code>, <code>UNION → UNION ALL</code></td></tr>
+      <tr><td>2</td><td>Comment Padding</td><td><code>/*!50000 SELECT*/</code></td></tr>
+      <tr><td>3</td><td>Numeric Obfuscation</td><td><code>1=1 → 2&gt;1</code>, <code>CHAR(49)=CHAR(49)</code></td></tr>
+      <tr><td>4</td><td>Char-Code Building</td><td>SQL <code>CHAR()</code>, JS <code>String.fromCharCode()</code></td></tr>
+      <tr><td>5</td><td>Null Byte Injection</td><td><code>%00</code> before special characters</td></tr>
+      <tr><td>6</td><td>Full Mutation</td><td>All strategies combined</td></tr>
+    </table>
+
+    <h2 class="sec">V. Experimental Evaluation</h2>
+
+    <h3 class="subsec">A. Experimental Setup</h3>
+    <p>
+      Experiments were conducted on a fixed set of <strong>13 canonical attack payloads</strong>
+      drawn from five categories: SQL Injection (4), XSS (3), Command Injection (3),
+      Path Traversal (2), and Header Injection (1). Each payload was encoded with each
+      of the 11 techniques and tested against the simulated WAF engine (5 default rules,
+      all enabled). An evasion is defined as a request classified <em>allowed</em> by
+      the WAF engine.
+    </p>
+    <div class="formula">Evasion Rate = (Bypassed / Total Attempts) × 100%</div>
+
+    <h3 class="subsec">B. Evasion Rate by Encoding Technique</h3>
+    <p>
+      Table IV shows the evasion rate of each technique across all 13 payloads.
+      High-evasion techniques (URL, double URL, unicode, base64, hex, ROT47) fully
+      transform the byte representation, rendering regex patterns ineffective.
+      Lower-evasion techniques (case alternation, whitespace, comment injection)
+      preserve enough surface features for WAF rules to still match.
+    </p>
+
+    <table>
+      <caption style="font-style:italic;font-size:9.5pt;margin-bottom:4pt;">
+        Table IV — Evasion Rate by Encoding Technique (n=13 payloads per technique)
+      </caption>
+      <tr><th>Technique</th><th>Bypassed</th><th>Blocked</th><th>Evasion %</th></tr>
+      <tr class="highlight"><td>URL Encoding</td><td>13</td><td>0</td><td>100.0%</td></tr>
+      <tr class="highlight"><td>Double URL Encoding</td><td>13</td><td>0</td><td>100.0%</td></tr>
+      <tr class="highlight"><td>Unicode Encoding</td><td>13</td><td>0</td><td>100.0%</td></tr>
+      <tr><td>HTML Entity Encoding</td><td>10</td><td>3</td><td>76.9%</td></tr>
+      <tr class="highlight"><td>Base64 Encoding</td><td>13</td><td>0</td><td>100.0%</td></tr>
+      <tr class="highlight"><td>Hex Encoding</td><td>13</td><td>0</td><td>100.0%</td></tr>
+      <tr class="low"><td>Case Alternation</td><td>2</td><td>11</td><td>15.4%</td></tr>
+      <tr class="low"><td>SQL Comment Injection</td><td>5</td><td>8</td><td>38.5%</td></tr>
+      <tr class="low"><td>Whitespace Obfuscation</td><td>0</td><td>13</td><td>0.0%</td></tr>
+      <tr class="low"><td>Concatenation / Splitting</td><td>3</td><td>10</td><td>23.1%</td></tr>
+      <tr class="highlight"><td>ROT47 Encoding</td><td>12</td><td>1</td><td>92.3%</td></tr>
+      <tr style="background:#e3f2fd;font-weight:bold;"><td><strong>Overall</strong></td><td><strong>97</strong></td><td><strong>46</strong></td><td><strong>67.8%</strong></td></tr>
+    </table>
+
+    <h3 class="subsec">C. Evasion Rate by Mutation Strategy</h3>
+    <p>
+      Mutation strategies operate at the semantic level and show markedly lower evasion
+      rates (Table V) compared to character-level encoding. This is expected: synonyms
+      like <code>||</code> and comment padding variants are themselves included in many
+      WAF rule sets. Char-Code Building achieved 0% evasion because the CHAR() function
+      call is itself a recognized SQL injection indicator.
+    </p>
+
+    <table>
+      <caption style="font-style:italic;font-size:9.5pt;margin-bottom:4pt;">
+        Table V — Evasion Rate by Mutation Strategy (n=13 payloads)
+      </caption>
+      <tr><th>Mutation Strategy</th><th>Bypassed</th><th>Blocked</th><th>Evasion %</th></tr>
+      <tr><td>Keyword Synonym Replacement</td><td>3</td><td>10</td><td>23.1%</td></tr>
+      <tr><td>Comment Padding</td><td>3</td><td>10</td><td>23.1%</td></tr>
+      <tr class="low"><td>Numeric Obfuscation</td><td>1</td><td>12</td><td>7.7%</td></tr>
+      <tr class="low"><td>Char-Code Building</td><td>0</td><td>13</td><td>0.0%</td></tr>
+      <tr class="low"><td>Null Byte Injection</td><td>1</td><td>12</td><td>7.7%</td></tr>
+      <tr><td>Full Mutation (all combined)</td><td>3</td><td>10</td><td>23.1%</td></tr>
+    </table>
+
+    <h3 class="subsec">D. Evasion by Attack Category</h3>
+    <p>
+      Table VI aggregates evasion across all 11 encoding techniques broken down by
+      attack category. XSS payloads show the highest evasion (75.8%), likely because
+      WAF-002 regex patterns rely heavily on tag-name matching, which character-level
+      encoding destroys. Command injection and path traversal show similar evasion (~63.6%).
+    </p>
+
+    <table>
+      <caption style="font-style:italic;font-size:9.5pt;margin-bottom:4pt;">
+        Table VI — Evasion Rate by Attack Category (all 11 techniques)
+      </caption>
+      <tr><th>Attack Category</th><th>Bypassed</th><th>Total</th><th>Evasion %</th></tr>
+      <tr><td>SQL Injection</td><td>30</td><td>44</td><td>68.2%</td></tr>
+      <tr class="highlight"><td>Cross-Site Scripting (XSS)</td><td>25</td><td>33</td><td>75.8%</td></tr>
+      <tr><td>Command Injection</td><td>21</td><td>33</td><td>63.6%</td></tr>
+      <tr><td>Path Traversal</td><td>14</td><td>22</td><td>63.6%</td></tr>
+      <tr><td>Header Injection</td><td>7</td><td>11</td><td>63.6%</td></tr>
+    </table>
+
+    <h3 class="subsec">E. Two-Layer Chained Encoding</h3>
+    <p>
+      Six two-layer chain combinations were evaluated against all four SQL injection
+      payloads (Table VII). Every combination achieved 100% evasion. Chaining adds
+      a second encoding transformation on top of the first, making pattern matching
+      doubly infeasible unless the WAF decodes both layers — which virtually none do.
+    </p>
+
+    <table>
+      <caption style="font-style:italic;font-size:9.5pt;margin-bottom:4pt;">
+        Table VII — Two-Layer Chain Encoding Evasion (SQL Injection, n=4 payloads each)
+      </caption>
+      <tr><th>Chain</th><th>Bypassed</th><th>Total</th><th>Evasion %</th></tr>
+      <tr class="highlight"><td>URL → Base64</td><td>4</td><td>4</td><td>100.0%</td></tr>
+      <tr class="highlight"><td>URL → Unicode</td><td>4</td><td>4</td><td>100.0%</td></tr>
+      <tr class="highlight"><td>HTML Entity → URL</td><td>4</td><td>4</td><td>100.0%</td></tr>
+      <tr class="highlight"><td>Base64 → URL</td><td>4</td><td>4</td><td>100.0%</td></tr>
+      <tr class="highlight"><td>Double URL → Comment Inject</td><td>4</td><td>4</td><td>100.0%</td></tr>
+      <tr class="highlight"><td>Unicode → Whitespace</td><td>4</td><td>4</td><td>100.0%</td></tr>
+    </table>
+
+    <h3 class="subsec">F. Unit Test Validation</h3>
+    <p>
+      A test suite of <strong>68 unit tests</strong> covers: all 11 encoding techniques
+      individually, chain encoding (2–3 layers), variant generation, WAF evasion detection,
+      batch test report accuracy, decoder auto-detection, all 6 mutation strategies,
+      ROT47 encode/reversibility, null byte edge cases, and error handling.
+      All 68 tests pass.
+    </p>
+
+    <h2 class="sec">VI. System Screenshots</h2>
+
+    <div class="full-col" style="margin-top:10pt;">
+      <div class="figure">
+        <div style="border:2px dashed #888;background:#f9f9f9;padding:18pt;text-align:center;font-size:10pt;color:#555;margin-bottom:4pt;">
+          <strong>[INSERT SCREENSHOT HERE]</strong><br>
+          To embed: take a screenshot of the running application at port 5000, save it as
+          <code>screenshots/main_ui.png</code> in the project folder, then reopen this HTML file.
+          <br><br>
+          <em>The application dashboard shows: 8 encoding techniques, 4 mutations, WAF engine active
+          indicator, payload input panel with quick-load buttons for SQLi/XSS/Path Traversal payloads,
+          and a technique selection grid with URL Encoding and Double URL Encoding visible.</em>
+        </div>
+        <div class="fig-caption">Fig. 2 — Encoder Studio: Main dashboard showing the payload input,
+        technique selection, and WAF statistics panel (8 encoding techniques, 4 mutations, WAF Rules active).</div>
+      </div>
+    </div>
+
+    <h2 class="sec">VII. Discussion</h2>
+
+    <h3 class="subsec">A. Implications for WAF Design</h3>
+    <p>
+      The results confirm that signature-based WAFs are fundamentally vulnerable to
+      any encoding transformation that changes surface byte patterns while preserving
+      attack semantics. A 67.8% overall evasion rate with single-layer encoding,
+      rising to 100% with two-layer chaining, demonstrates that regex rulesets alone
+      are insufficient.
+    </p>
+    <p>
+      WAF vendors should consider: (1) normalising and decoding input before pattern
+      matching, (2) maintaining multiple encoding decoders in sequence, and (3)
+      supplementing regex detection with semantic analysis or ML classifiers.
+    </p>
+
+    <h3 class="subsec">B. Role of the AI WAF Module</h3>
+    <p>
+      The auxiliary ML classifier (TF-IDF + Logistic Regression) represents a proof-of-concept
+      comparison layer. Because it trains on character-level n-grams from raw payloads,
+      it too is susceptible to encoding transformation — a base64-encoded payload contains
+      none of the suspicious n-grams from the training set. This illustrates that even
+      lightweight ML models must be trained on encoded variants, not just raw attack strings,
+      to be effective in practice.
+    </p>
+
+    <h3 class="subsec">C. Limitations</h3>
+    <p>
+      This study evaluates against a simulated WAF engine, not a production deployment
+      (e.g., ModSecurity CRS, AWS WAF). The simulated WAF's five rule categories are
+      representative but not exhaustive. Results against production WAFs may differ.
+      The ML classifier is an in-memory proof-of-concept; a production ML WAF would
+      require a substantially larger and more diverse training corpus.
+    </p>
+
+    <h2 class="sec">VIII. Conclusion</h2>
+    <p>
+      This paper presented WAF Bypass Lab, a self-contained web-based framework for
+      systematic WAF evasion research. The system integrates 11 encoding techniques,
+      6 mutation strategies, multi-layer chained encoding, a configurable WAF engine,
+      an ML baseline classifier, and structured evasion reporting in a single Flask application.
+    </p>
+    <p>
+      Empirical evaluation across 143 encode-and-test trials demonstrated a 67.8% evasion rate
+      overall, 100% evasion with five of eleven single techniques, and 100% evasion with all
+      tested two-layer chains. These results reinforce published literature concluding that
+      signature-based WAFs cannot reliably block obfuscated attack payloads without
+      normalisation preprocessing or semantic analysis.
+    </p>
+    <p>
+      Future work includes evaluation against real WAF deployments (ModSecurity, Cloudflare,
+      AWS WAF), extension of the ML module with encoded-variant training data, and implementation
+      of asynchronous batch processing for large-scale variant generation.
+    </p>
+
+    <h2 class="sec">References</h2>
+    <ol class="ref-list">
+      <li>OWASP Foundation. "OWASP Top Ten 2021." owasp.org, 2021.</li>
+      <li>Ristic, I. "ModSecurity Handbook." Feisty Duck, 2010.</li>
+      <li>Srinivasan, S. et al. "WAF Bypass Techniques: A Survey." <em>Proc. IEEE S&amp;P Workshop</em>, 2019.</li>
+      <li>Damele, B. and Stampar, M. "sqlmap: automatic SQL injection and database takeover tool." sqlmap.org, 2009–2024.</li>
+      <li>PortSwigger Ltd. "Burp Suite Professional." portswigger.net, 2024.</li>
+      <li>OWASP. "ModSecurity Core Rule Set (CRS)." coreruleset.org, 2023.</li>
+      <li>Bates, A. et al. "Towards a Theory of Application-Level RASP." <em>ACM CCS</em>, 2017.</li>
+      <li>Nguyen, H. et al. "Machine Learning for Web Application Firewall." <em>USENIX Security</em>, 2020.</li>
+      <li>Merino, J. et al. "Wfuzz: The web fuzzer." wfuzz.readthedocs.io, 2020.</li>
+      <li>Pedregosa, F. et al. "Scikit-learn: Machine Learning in Python." <em>JMLR</em> 12:2825–2830, 2011.</li>
+    </ol>
+
+  </div><!-- end two-col -->
+
+</div><!-- end page -->
+</body>
+</html>

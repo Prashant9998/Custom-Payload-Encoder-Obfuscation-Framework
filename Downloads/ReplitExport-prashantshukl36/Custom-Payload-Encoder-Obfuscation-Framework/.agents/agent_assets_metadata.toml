@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "aoHhw0ozi-3vNYS4ZEDNv"
+uri = "file://research_paper.pdf"
+type = "pdf"
+title = "Full Paper — All Web App Features Covered (14 pages)"
