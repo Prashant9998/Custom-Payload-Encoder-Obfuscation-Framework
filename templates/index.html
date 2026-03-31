@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- WAF Bypass Lab - Payload Encoder & Obfuscation Framework
+     Author: Prashant Sharma  |  v2.0.0  |  MIT License
+     Personal red-team toolkit. Built for fast WAF evasion iteration.
+     https://github.com/Prashant9998
+-->
+<title>Payload Obfuscation — Encoder Framework</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<!-- ═══ CRT SCANLINE OVERLAY ═══════════════════════════════════════ -->
+<style>
+  /* CRT scanlines across the entire page */
+  body::after {
+    content: '';
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(0,0,0,0.06) 3px,
+      rgba(0,0,0,0.06) 4px
+    );
+    pointer-events: none;
+    z-index: 99998;
+    animation: scan-move 8s linear infinite;
+  }
+  @keyframes scan-move {
+    0%   { background-position: 0 0; }
+    100% { background-position: 0 80px; }
+  }
+
+  /* Matrix rain canvas — fixed sides */
+  #matrix-left, #matrix-right {
+    position: fixed; top: 0;
+    width: 36px; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.35;
+  }
+  #matrix-left  { left: 0; }
+  #matrix-right { right: 0; }
+
+  /* Glitch animation for logo text */
+  @keyframes glitch-clip-1 {
+    0%  { clip-path: inset(0 0 95% 0); transform: translate(-2px, 0); }
+    20% { clip-path: inset(40% 0 50% 0); transform: translate(2px, 0); }
+    40% { clip-path: inset(70% 0 10% 0); transform: translate(-1px, 0); }
+    60% { clip-path: inset(20% 0 60% 0); transform: translate(1px, 0); }
+    80% { clip-path: inset(80% 0 5%  0); transform: translate(-2px, 0); }
+    100%{ clip-path: inset(0 0 95% 0); transform: translate(0, 0); }
+  }
+  @keyframes glitch-clip-2 {
+    0%  { clip-path: inset(50% 0 30% 0); transform: translate(2px, 0); }
+    25% { clip-path: inset(10% 0 80% 0); transform: translate(-2px, 0); }
+    50% { clip-path: inset(60% 0 20% 0); transform: translate(1px, 0); }
+    75% { clip-path: inset(30% 0 55% 0); transform: translate(-1px, 0); }
+    100%{ clip-path: inset(50% 0 30% 0); transform: translate(0, 0); }
+  }
+  .logo-main.glitching::before,
+  .logo-main.glitching::after {
+    content: attr(data-text);
+    position: absolute; left: 0; top: 0; width: 100%;
+    background: inherit; -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .logo-main { position: relative; }
+  .logo-main.glitching::before {
+    color: #00e5ff;
+    animation: glitch-clip-1 0.4s steps(1) infinite;
+    filter: drop-shadow(2px 0 0 #00e5ff);
+  }
+  .logo-main.glitching::after {
+    color: #7c4dff;
+    animation: glitch-clip-2 0.4s steps(1) infinite;
+    filter: drop-shadow(-2px 0 0 #7c4dff);
+  }
+
+  /* Tab panel slide-in on switch */
+  .panel.active {
+    animation: panel-slide-in 0.35s cubic-bezier(.16,1,.3,1) both;
+  }
+  @keyframes panel-slide-in {
+    from { opacity: 0; transform: translateY(18px) scale(.99); }
+    to   { opacity: 1; transform: translateY(0)    scale(1); }
+  }
+</style>
+
+<!-- Matrix rain on left and right edges -->
+<canvas id="matrix-left"></canvas>
+<canvas id="matrix-right"></canvas>
+
+<!-- 3D canvas background -->
+<canvas id="bg-canvas"></canvas>
+
+
+<!-- Ambient orbs -->
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<!-- Perspective grid overlay -->
+<div class="grid-overlay"></div>
+
+<div class="app">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="hdr-logo">
+
+      <!-- 3D Logo Block -->
+      <style>
+        @keyframes logo-float {
+          0%,100% { transform: perspective(400px) rotateX(8deg) rotateY(-4deg) translateY(0px); }
+          50%      { transform: perspective(400px) rotateX(6deg) rotateY(4deg) translateY(-4px); }
+        }
+        @keyframes ring-spin {
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
+        }
+        @keyframes glow-pulse {
+          0%,100% { opacity: .7; }
+          50%      { opacity: 1; }
+        }
+        .logo3d-wrap {
+          display: flex; align-items: center; gap: 14px;
+          animation: logo-float 4s ease-in-out infinite;
+          cursor: default;
+        }
+        .logo3d-wrap:hover {
+          animation: none;
+          transform: perspective(400px) rotateX(0deg) rotateY(0deg) scale(1.04);
+          transition: transform .3s ease;
+        }
+        .logo-shield {
+          position: relative; width: 46px; height: 46px; flex-shrink: 0;
+        }
+        .logo-shield svg.ring {
+          position: absolute; top: -6px; left: -6px;
+          width: 58px; height: 58px;
+          animation: ring-spin 5s linear infinite;
+          animation: glow-pulse 2s ease-in-out infinite;
+        }
+        .logo-text-block { display: flex; flex-direction: column; line-height: 1; }
+        .logo-main {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
+          background: linear-gradient(135deg, #00e5ff 0%, #7c4dff 50%, #00e5ff 100%);
+          background-size: 200% auto;
+          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+          background-clip: text;
+          text-shadow: none;
+          /* 3D depth layers via filter drop-shadow */
+          filter:
+            drop-shadow(0 1px 0 rgba(0,229,255,.8))
+            drop-shadow(0 2px 0 rgba(0,229,255,.6))
+            drop-shadow(0 3px 0 rgba(0,229,255,.4))
+            drop-shadow(0 4px 0 rgba(0,229,255,.2))
+            drop-shadow(0 8px 20px rgba(0,229,255,.35));
+          animation: glow-pulse 2.5s ease-in-out infinite;
+        }
+        .logo-sub {
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 10px; letter-spacing: 0.25em; font-weight: 400;
+          color: rgba(124,77,255,.85);
+          text-transform: uppercase;
+          margin-top: 3px;
+          filter: drop-shadow(0 0 6px rgba(124,77,255,.5));
+        }
+      </style>
+
+      <div class="logo3d-wrap">
+        <!-- Shield icon with glow ring -->
+        <div class="logo-shield">
+          <!-- spinning glow ring -->
+          <svg class="ring" viewBox="0 0 58 58" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="29" cy="29" r="26"
+              stroke="url(#rgrad)" stroke-width="1.5"
+              stroke-dasharray="12 6" stroke-linecap="round"/>
+            <defs>
+              <linearGradient id="rgrad" x1="0" y1="0" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+                <stop offset="0%"   stop-color="#00e5ff"/>
+                <stop offset="50%"  stop-color="#7c4dff"/>
+                <stop offset="100%" stop-color="#00e5ff"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <!-- main shield -->
+          <svg width="46" height="46" viewBox="0 0 46 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="sg" x1="0" y1="0" x2="46" y2="46" gradientUnits="userSpaceOnUse">
+                <stop offset="0%"   stop-color="#00e5ff"/>
+                <stop offset="100%" stop-color="#7c4dff"/>
+              </linearGradient>
+              <filter id="sglow">
+                <feGaussianBlur stdDeviation="2" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <path d="M23 4L7 10v12c0 9.4 6.8 18.2 16 20 9.2-1.8 16-10.6 16-20V10L23 4z"
+              fill="rgba(0,229,255,0.08)" stroke="url(#sg)" stroke-width="1.8" filter="url(#sglow)"/>
+            <!-- lock body -->
+            <rect x="17" y="22" width="12" height="9" rx="2"
+              fill="url(#sg)" opacity=".9"/>
+            <!-- lock shackle -->
+            <path d="M19 22v-3a4 4 0 0 1 8 0v3" stroke="url(#sg)" stroke-width="2"
+              stroke-linecap="round" fill="none"/>
+            <!-- keyhole -->
+            <circle cx="23" cy="26" r="1.5" fill="rgba(0,0,0,.5)"/>
+            <rect x="22.2" y="26" width="1.6" height="2.5" rx=".8" fill="rgba(0,0,0,.5)"/>
+          </svg>
+        </div>
+
+        <!-- text -->
+        <div class="logo-text-block">
+          <span class="logo-main">Payload Obfuscation</span>
+          <span class="logo-sub">encoder &amp; evasion framework</span>
+        </div>
+
+        <span class="ver-badge">v2.0.0</span>
+      </div>
+
+    </div>
+    <div class="hdr-right">
+      <div class="status-dot"><div class="dot"></div>WAF Engine Active</div>
+    </div>
+  </div>
+
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active"  onclick="switchTab('encoder')">&#x26A1; Encoder Studio</div>
+    <div class="tab" onclick="switchTab('decoder')">&#x1F513; Decoder</div>
+    <div class="tab" onclick="switchTab('mutations')">&#x1F9EC; Mutations</div>
+    <div class="tab" onclick="switchTab('batch')">&#x1F9EA; Batch Test</div>
+    <div class="tab" onclick="switchTab('rules')">&#x1F6E1; WAF Rules</div>
+    <div class="tab" onclick="switchTab('aiwaf')">&#x1F916; AI WAF</div>
+    <div class="tab" onclick="switchTab('livetest')">&#x1F3AF; Live Test</div>
+    <div class="tab" onclick="switchTab('mllab')">&#x1F9E0; ML Lab</div>
+    <div class="tab" onclick="switchTab('metrics')">&#x1F4CA; Metrics</div>
+    <div class="tab" onclick="switchTab('crs')">&#x1F6E1; CRS Engine</div>
+    <div class="tab" onclick="switchTab('cloudwaf')">&#x2601; Cloud WAF</div>
+    <div class="tab" onclick="switchTab('dataset')">&#x1F4C2; Dataset</div>
+    <div class="tab" onclick="switchTab('samples')">&#x1F4E6; Samples</div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="srow" id="statsRow"></div>
+
+    <!-- Cold-start overlay (shown when Render is waking up) -->
+    <div id="coldStartOverlay" style="display:none;position:fixed;inset:0;z-index:99990;background:rgba(9,11,20,.92);backdrop-filter:blur(10px);display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;">
+      <div style="width:56px;height:56px;border:3px solid rgba(56,189,248,.3);border-top-color:var(--c1);border-radius:50%;animation:spin 1s linear infinite"></div>
+      <div style="text-align:center">
+        <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:6px">&#x2600;&#xFE0F; Server Waking Up…</div>
+        <div style="font-size:13px;color:var(--text2)">This is a free-tier server — cold start takes ~15 seconds.</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px">Hang tight, everything will load shortly.</div>
+      </div>
+      <div id="coldStartTimer" style="font-family:var(--mono);font-size:22px;color:var(--c1)">15s</div>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+    <!-- ENCODER -->
+    <div class="panel active" id="panel-encoder">
+      <div class="g2">
+        <div style="display:flex;flex-direction:column">
+          <div class="card">
+            <h3>&#x26A1; Payload Input</h3>
+            <div class="sub">Enter the raw attack payload to encode or obfuscate</div>
+            <label>PAYLOAD</label>
+            <textarea id="encPayload" placeholder="' OR 1=1 --"></textarea>
+            <label style="margin-top:10px">QUICK LOAD</label>
+            <div class="pills" id="encPills"></div>
+          </div>
+          <div class="card">
+            <h3>&#x1F527; Techniques
+              <span style="margin-left:auto;display:flex;gap:5px">
+                <button class="btn btn-o btn-sm" onclick="selectAll('tech')">All</button>
+                <button class="btn btn-o btn-sm" onclick="clearAll('tech')">Clear</button>
+              </span>
+            </h3>
+            <div class="sub">Select encoding and obfuscation methods</div>
+            <div class="g2" id="techGrid"></div>
+          </div>
+          <!-- Sticky action bar always visible -->
+          <div class="btn-grp" style="position:sticky;bottom:24px;z-index:10;background:var(--bg);padding:14px 0 0;">
+            <button class="btn btn-p" onclick="encodePayload()">&#x26A1; Encode</button>
+            <button class="btn btn-d" onclick="encodeAndTest()">&#x1F680; Encode &amp; Test WAF</button>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <div class="card" id="encCard" style="flex: 1; display: flex; flex-direction: column;">
+            <h3>&#x1F4CA; Results</h3>
+            <div class="sub" id="encSub">Ready to encode</div>
+            <div id="encEmptyState" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align:center; padding:20px; color:var(--text3)">
+              <div style="font-size:42px;margin-bottom:16px;opacity:0.5">&#x26A1;</div>
+              <div style="font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text2)">Awaiting Payload</div>
+              <div style="font-size:12px">Enter a payload and select techniques on the left to see encoded results here.</div>
+            </div>
+            <div id="encTableWrap" style="overflow-x:auto;display:none">
+              <table class="tbl">
+                <thead><tr><th>#</th><th>Status</th><th>Technique</th><th>Encoded Payload</th><th>Conf</th><th></th></tr></thead>
+                <tbody id="encBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DECODER -->
+    <div class="panel" id="panel-decoder">
+      <div class="g2">
+        <div>
+          <div class="card">
+            <h3>&#x1F513; Decode / Reverse Mode</h3>
+            <div class="sub">Auto-detect encoding and reverse it step-by-step</div>
+            <label>ENCODED PAYLOAD</label>
+            <textarea id="decPayload" placeholder="%27%20OR%201%3D1%20--"></textarea>
+            <label style="margin-top:10px">ENCODING TYPE</label>
+            <select id="decType">
+              <option value="auto">&#x1F50D; Auto-Detect</option>
+              <option value="url">URL Encoding</option>
+              <option value="double_url">Double URL Encoding</option>
+              <option value="base64">Base64</option>
+              <option value="hex">Hex Encoding</option>
+              <option value="unicode">Unicode Encoding</option>
+              <option value="html_entity">HTML Entity</option>
+              <option value="comment_inject">SQL Comment Injection</option>
+              <option value="concat_split">Concatenation Split</option>
+            </select>
+            <div class="btn-grp">
+              <button class="btn btn-p" onclick="decodePayload()">&#x1F513; Decode</button>
+              <button class="btn btn-o" onclick="detectOnly()">&#x1F50E; Detect Only</button>
+            </div>
+          </div>
+          <div class="card" id="detectCard" style="display:none">
+            <h3>&#x1F50E; Detected Encodings</h3>
+            <div id="detectOut"></div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <div class="card" id="decCard" style="flex: 1; display: flex; flex-direction: column;">
+            <h3>&#x1F4CB; Decode Steps</h3>
+            <div class="sub" id="decSub">Ready to decode</div>
+            <div id="decEmptyState" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align:center; padding:20px; color:var(--text3)">
+              <div style="font-size:42px;margin-bottom:16px;opacity:0.5">&#x1F513;</div>
+              <div style="font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text2)">Awaiting Payload</div>
+              <div style="font-size:12px">Enter an encoded payload on the left to reverse engineer the encoding layers.</div>
+            </div>
+            <div id="decResultWrap" style="display:none">
+              <div id="decSteps"></div>
+              <div class="card" style="margin-top:14px;border-color:rgba(0,255,157,.25)">
+                <label>FINAL DECODED OUTPUT</label>
+                <pre id="decFinal" style="background:rgba(0,255,157,.04);border:1px solid rgba(0,255,157,.12);padding:11px;border-radius:8px;font-family:var(--mono);font-size:12px;color:var(--green);word-break:break-all;white-space:pre-wrap"></pre>
+                <div style="margin-top:8px;display:flex;gap:7px">
+                  <button class="cp" onclick="copyEl('decFinal')">&#x1F4CB; Copy</button>
+                  <button class="btn btn-o btn-sm" onclick="sendToEncoder()">&#x26A1; Send to Encoder</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MUTATIONS -->
+    <div class="panel" id="panel-mutations">
+      <div class="g2">
+        <div>
+          <div class="card">
+            <h3>&#x1F9EC; Mutation Engine</h3>
+            <div class="sub">Advanced payload transformation beyond simple encoding</div>
+            <label>PAYLOAD</label>
+            <textarea id="mutPayload" placeholder="' OR 1=1 --"></textarea>
+            <label style="margin-top:10px">QUICK LOAD</label>
+            <div class="pills" id="mutPills"></div>
+          </div>
+          <div class="card">
+            <h3>&#x2699;&#xFE0F; Mutation Types</h3>
+            <div class="sub">Select which mutations to apply</div>
+            <div class="g2" id="mutGrid"></div>
+          </div>
+          <div class="btn-grp">
+            <button class="btn btn-p" onclick="mutateSingle()">&#x1F9EC; Mutate</button>
+            <button class="btn btn-d" onclick="mutateAndTest()">&#x1F680; Mutate &amp; Test WAF</button>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <div class="card" id="mutCard" style="flex: 1; display: flex; flex-direction: column;">
+            <h3>&#x1F9EC; Mutation Results</h3>
+            <div class="sub" id="mutSub">Ready to mutate</div>
+            <div id="mutEmptyState" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align:center; padding:20px; color:var(--text3)">
+              <div style="font-size:42px;margin-bottom:16px;opacity:0.5">&#x1F9EC;</div>
+              <div style="font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text2)">Awaiting Payload</div>
+              <div style="font-size:12px">Enter a payload and select mutation engine techniques on the left.</div>
+            </div>
+            <div id="mutTableWrap" style="overflow-x:auto;display:none">
+              <table class="tbl">
+                <thead><tr><th>#</th><th>Status</th><th>Mutation</th><th>Mutated Payload</th><th>Conf</th><th></th></tr></thead>
+                <tbody id="mutBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BATCH TEST -->
+    <div class="panel" id="panel-batch">
+      <div class="card">
+        <h3>&#x1F9EA; Batch Evasion Test</h3>
+        <div class="sub">Generate variants and test them all against the WAF automatically</div>
+        <div class="g2">
+          <div>
+            <label>PAYLOAD</label>
+            <textarea id="batchPayload" placeholder="' OR 1=1 --"></textarea>
+            <label style="margin-top:10px">VARIANTS TO GENERATE</label>
+            <input type="number" id="batchCount" value="15" min="1" max="50">
+          </div>
+          <div>
+            <label>QUICK LOAD</label>
+            <div class="pills" id="batchPills"></div>
+          </div>
+        </div>
+        <div class="btn-grp">
+          <button class="btn btn-d" onclick="runBatch()">&#x1F680; Run Batch Evasion Test</button>
+        </div>
+      </div>
+      <div id="batchOut" style="display:none">
+        <div class="ev-wrap">
+          <div>
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:4px">EVASION RATE</div>
+            <div class="ev-rate"><span id="bRate">0</span>%</div>
+          </div>
+          <div class="ev-track"><div class="ev-fill" id="bFill" style="width:0"></div></div>
+          <div class="ev-nums">
+            <div class="ev-bl"><div class="n" id="bBlocked">0</div><div class="l">Blocked</div></div>
+            <div class="ev-by"><div class="n" id="bBypassed">0</div><div class="l">Bypassed</div></div>
+            <div class="ev-to"><div class="n" id="bTotal">0</div><div class="l">Total</div></div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h3 style="font-size:14px">Detailed Results</h3>
+          <div class="exd">
+            <button class="btn btn-o btn-sm" onclick="toggleExport()">&#x1F4E5; Export &#x25BE;</button>
+            <div class="exm" id="exMenu">
+              <button onclick="exportReport('json')">&#x1F4C4; Export JSON</button>
+              <button onclick="exportReport('csv')">&#x1F4CA; Export CSV</button>
+              <button onclick="exportReport('html')">&#x1F310; Export HTML</button>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="overflow-x:auto">
+          <table class="tbl">
+            <thead><tr><th>#</th><th>Status</th><th>Technique</th><th>Encoded Payload</th><th>Conf</th><th></th></tr></thead>
+            <tbody id="batchBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- WAF RULES -->
+    <div class="panel" id="panel-rules">
+      <div class="g2">
+        <div>
+          <div class="card">
+            <h3>&#x1F6E1; Active WAF Rules</h3>
+            <div class="sub">Toggle rules on/off to simulate different WAF configurations</div>
+            <div id="rulesList"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <h3>&#x2795; Custom Rule Builder</h3>
+            <div class="sub">Create your own regex-based detection rules</div>
+            <label>RULE ID</label>
+            <input type="text" id="nRuleId" placeholder="CUSTOM-001">
+            <label style="margin-top:10px">CATEGORY</label>
+            <input type="text" id="nRuleCat" placeholder="Custom Detection">
+            <label style="margin-top:10px">DESCRIPTION</label>
+            <input type="text" id="nRuleDesc" placeholder="Detects custom attack patterns">
+            <label style="margin-top:10px">REGEX PATTERNS (one per line)</label>
+            <textarea id="nRulePat" placeholder="(?i)(custom_attack)" style="min-height:90px"></textarea>
+            <label style="margin-top:10px">CONFIDENCE (0.0 – 1.0)</label>
+            <input type="number" id="nRuleConf" value="0.85" min="0" max="1" step="0.05">
+            <div class="btn-grp">
+              <button class="btn btn-p" onclick="addRule()">&#x2795; Add Rule</button>
+              <button class="btn btn-o" onclick="testPattern()">&#x1F9EA; Test Pattern</button>
+            </div>
+          </div>
+          <div class="card" id="patTestCard" style="display:none">
+            <h3>&#x1F9EA; Pattern Test</h3>
+            <div id="patTestOut"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ML LAB PANEL -->
+    <div class="panel" id="panel-mllab">
+      <div class="g2">
+        <div>
+          <div class="card">
+            <h3>&#x1F9E0; ML Model Comparison</h3>
+            <div class="sub">Three classifiers trained side-by-side: Logistic Regression, Random Forest, XGBoost</div>
+            <div class="btn-grp" style="margin-top:12px">
+              <button class="btn btn-p" onclick="mlLoadComparison()">&#x1F4CA; Load Model Metrics</button>
+              <button class="btn btn-o" onclick="mlRetrainSynthetic()">&#x1F504; Retrain (Synthetic)</button>
+            </div>
+          </div>
+          <div class="card" id="mlCompCard" style="display:none">
+            <h3>&#x1F3C6; Model Performance Table</h3>
+            <div id="mlCompTable"></div>
+          </div>
+          <div class="card" id="mlDatasetCard" style="display:none">
+            <h3>&#x1F4BE; Dataset Info</h3>
+            <div id="mlDatasetInfo"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <h3>&#x1F52C; Classify a Payload</h3>
+            <div class="sub">Ensemble vote across all three models</div>
+            <label>PAYLOAD</label>
+            <textarea id="mlPayload" placeholder="' OR 1=1 --" style="height:90px"></textarea>
+            <div class="btn-grp" style="margin-top:10px">
+              <button class="btn btn-p" onclick="mlClassify()">&#x1F9E0; Classify (Ensemble)</button>
+              <button class="btn" onclick="mlClassifyAll()">&#x1F4CB; Compare All Models</button>
+            </div>
+            <div id="mlClassifyResult" style="margin-top:14px"></div>
+          </div>
+          <div class="card">
+            <h3>&#x1F3AF; Full Research Test</h3>
+            <div class="sub">Test one payload against Regex WAF + OWASP CRS + ML Ensemble simultaneously</div>
+            <label>PAYLOAD</label>
+            <textarea id="researchPayload" placeholder="' OR 1=1 --" style="height:70px"></textarea>
+            <div style="display:flex;gap:10px;margin-top:8px">
+              <div style="flex:1">
+                <label>VARIANTS</label>
+                <input type="number" id="researchCount" value="15" min="5" max="50">
+              </div>
+            </div>
+            <button class="btn btn-p" onclick="researchFullTest()" style="margin-top:10px;width:100%">&#x26A1; Run Full Research Test</button>
+            <div id="researchResult" style="margin-top:14px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- METRICS PANEL -->
+    <div class="panel" id="panel-metrics">
+      <div class="g2">
+        <div>
+          <div class="card">
+            <h3>&#x1F4CA; Performance Metrics</h3>
+            <div class="sub">Payload size, response time, bypass/detection rates across all recorded tests</div>
+            <div class="btn-grp" style="margin-top:12px">
+              <button class="btn btn-p" onclick="metricsLoad()">&#x1F504; Refresh Metrics</button>
+              <button class="btn btn-o" onclick="metricsClear()">&#x1F5D1; Clear All</button>
+            </div>
+          </div>
+          <div class="card" id="metricsSummaryCard">
+            <h3>&#x1F4C8; Summary</h3>
+            <div id="metricsSummary"><div class="sub">Click Refresh Metrics to load</div></div>
+          </div>
+          <div class="card" id="metricsSystemCard">
+            <h3>&#x1F4BB; System Info</h3>
+            <div id="metricsSystem"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <h3>&#x1F3C6; Technique Bypass Ranking</h3>
+            <div class="sub">Techniques ordered by evasion success rate</div>
+            <div id="metricsRanking"><div class="sub">Load metrics first</div></div>
+          </div>
+          <div class="card">
+            <h3>&#x1F4CB; Recent Requests</h3>
+            <div id="metricsRecent"><div class="sub">Load metrics first</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CRS ENGINE PANEL -->
+    <div class="panel" id="panel-crs">
+      <div class="g2">
+        <div>
+          <div class="card">
+            <h3>&#x1F6E1; OWASP CRS Engine</h3>
+            <div class="sub">OWASP Core Rule Set v3.3 — simulate ModSecurity without a real server</div>
+            <label>MODE</label>
+            <select id="crsMode" onchange="crsModeChanged()">
+              <option value="simulate">Simulate (offline — OWASP CRS rules in Python)</option>
+              <option value="live">Live (send HTTP requests to real ModSecurity)</option>
+            </select>
+            <div id="crsLiveConfig" style="display:none;margin-top:10px">
+              <label>MODSECURITY URL</label>
+              <input type="text" id="crsUrl" placeholder="http://localhost:8080" value="http://localhost:8080">
+            </div>
+            <label style="margin-top:10px">PARANOIA LEVEL</label>
+            <select id="crsParanoia">
+              <option value="1">1 — Standard (default)</option>
+              <option value="2">2 — Strict</option>
+              <option value="3">3 — Very Strict</option>
+              <option value="4">4 — Extreme</option>
+            </select>
+            <button class="btn btn-p" onclick="crsApplyMode()" style="margin-top:10px">&#x1F527; Apply Settings</button>
+          </div>
+          <div class="card">
+            <h3>&#x1F4DC; Active CRS Rules</h3>
+            <button class="btn btn-o" onclick="crsLoadRules()" style="margin-bottom:12px">&#x1F504; Load Rules</button>
+            <div id="crsRulesList"><div class="sub">Click Load Rules</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <h3>&#x1F9EA; CRS Batch Test</h3>
+            <label>PAYLOAD</label>
+            <textarea id="crsPayload" placeholder="' OR 1=1 --" style="height:90px"></textarea>
+            <div style="display:flex;gap:10px;margin-top:8px">
+              <div style="flex:1">
+                <label>VARIANTS</label>
+                <input type="number" id="crsCount" value="20" min="5" max="100">
+              </div>
+            </div>
+            <button class="btn btn-p" onclick="crsBatchTest()" style="margin-top:10px;width:100%">&#x1F6E1; Test Against CRS</button>
+          </div>
+          <div id="crsBatchOut" style="display:none">
+            <div class="card">
+              <h3>&#x1F4CA; CRS Test Results</h3>
+              <div id="crsSummary"></div>
+            </div>
+            <div class="card">
+              <h3>&#x1F4CB; Per-Payload Results</h3>
+              <div id="crsResults"></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <h3>&#x1F50D; Inspect Single Payload</h3>
+            <textarea id="crsSinglePayload" placeholder="' UNION SELECT NULL--" style="height:70px"></textarea>
+            <button class="btn btn-o" onclick="crsSingleInspect()" style="margin-top:8px">&#x1F50D; Inspect</button>
+            <div id="crsSingleResult" style="margin-top:10px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLOUD WAF PANEL -->
+    <div class="panel" id="panel-cloudwaf">
+      <div class="g2">
+        <div>
+          <div class="card">
+            <h3>&#x2601; Cloud WAF Simulator</h3>
+            <div class="sub">Simulate evasion against AWS WAF, Cloudflare, or Akamai block rules.</div>
+            <label>TARGET WAF</label>
+            <select id="cloudWafProvider">
+              <option value="aws">AWS WAF (Simulated)</option>
+              <option value="cloudflare">Cloudflare (Simulated)</option>
+              <option value="akamai">Akamai (Simulated)</option>
+            </select>
+            
+            <label style="margin-top:10px">PAYLOAD</label>
+            <textarea id="cloudWafPayload" placeholder="' OR 1=1 --" style="height:90px"></textarea>
+            
+            <div style="display:flex;gap:10px;margin-top:8px">
+              <div style="flex:1">
+                <label>VARIANTS</label>
+                <input type="number" id="cloudWafCount" value="20" min="5" max="100">
+              </div>
+            </div>
+            
+            <button class="btn btn-p" onclick="cloudWafTest()" style="margin-top:10px;width:100%">&#x2601; Test Target WAF</button>
+          </div>
+        </div>
+        
+        <div>
+          <div id="cloudWafOut" style="display:none">
+            <div class="card">
+              <h3>&#x1F4CA; Cloud WAF Results</h3>
+              <div id="cloudWafSummary"></div>
+            </div>
+            <div class="card" style="margin-top:14px;overflow-x:auto;">
+              <h3>&#x1F4CB; Per-Payload Results</h3>
+              <table class="tbl">
+                <thead><tr><th>#</th><th>Status</th><th>Technique</th><th>Payload</th><th>Time</th></tr></thead>
+                <tbody id="cloudWafResults"></tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div id="cloudWafEmpty" style="padding:40px 20px;text-align:center;color:var(--text3)">
+            <div style="font-size:48px;margin-bottom:12px;opacity:0.3">&#x2601;</div>
+            <div style="font-size:16px;font-weight:600;color:var(--text2);margin-bottom:8px">Ready to Simulate Cloud WAFs</div>
+            <div style="font-size:13px">Select a provider and enter a payload to see how it fares against common managed rule sets.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DATASET PANEL -->
+    <div class="panel" id="panel-dataset">
+      <div class="g2">
+        <div>
+          <div class="card">
+            <h3>&#x1F4C2; UNSW-NB15 Dataset — Upload &amp; Train</h3>
+            <div class="sub">Upload your 2 GB CSV directly from your machine. The server streams it in 50k-row chunks — never loads the whole file into RAM.</div>
+            <label style="margin-top:14px">STEP 1 — SELECT CSV FILE</label>
+            <input type="file" id="datasetFile" accept=".csv" style="margin-top:6px;width:100%;color:#ccd6f6;background:#12172b;border:1px solid #1e2642;border-radius:6px;padding:8px">
+            <button class="btn btn-p" onclick="datasetUpload()" style="margin-top:10px;width:100%">&#x2B06; Upload CSV</button>
+            <div id="datasetUploadProgress" style="margin-top:10px;display:none">
+              <div style="background:#0a0e1a;border-radius:4px;height:8px">
+                <div id="datasetUploadBar" style="background:#7c4dff;width:0%;height:8px;border-radius:4px;transition:width 0.3s"></div>
+              </div>
+              <div id="datasetUploadMsg" style="font-size:12px;color:#8892b0;margin-top:4px"></div>
+            </div>
+          </div>
+
+          <div class="card" id="datasetFileInfoCard" style="display:none">
+            <h3>&#x1F50D; File Inspection</h3>
+            <div id="datasetFileInfo"></div>
+            <div style="margin-top:12px">
+              <label>LABEL COLUMN</label>
+              <input type="text" id="datasetLabelCol" value="label" placeholder="label">
+              <label style="margin-top:8px">MAX ROWS TO TRAIN ON</label>
+              <input type="number" id="datasetMaxSamples" value="200000" min="10000" step="10000">
+              <div class="sub" style="margin-top:4px">200k rows ≈ 30-60 seconds training time</div>
+              <button class="btn btn-p" onclick="datasetStartTrain()" style="margin-top:12px;width:100%">&#x1F9E0; Start Training (Background)</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>&#x1F4C1; Uploaded Files</h3>
+            <button class="btn btn-o" onclick="datasetListFiles()" style="margin-bottom:12px">&#x1F504; Refresh</button>
+            <div id="datasetFileList"><div class="sub">Click Refresh to list files</div></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card" id="datasetTrainCard" style="display:none">
+            <h3>&#x23F3; Training Job Progress</h3>
+            <div id="datasetTrainStatus"></div>
+            <div style="background:#0a0e1a;border-radius:4px;height:12px;margin-top:12px">
+              <div id="datasetTrainBar" style="background:#00e5ff;width:0%;height:12px;border-radius:4px;transition:width 0.5s"></div>
+            </div>
+            <div id="datasetTrainMsg" style="font-size:12px;color:#8892b0;margin-top:6px"></div>
+          </div>
+
+          <div class="card" id="datasetResultCard" style="display:none">
+            <h3>&#x1F3C6; Training Results</h3>
+            <div id="datasetResultContent"></div>
+          </div>
+
+          <div class="card">
+            <h3>&#x2139; UNSW-NB15 Column Reference</h3>
+            <div class="sub" style="margin-bottom:10px">Key columns used for ML text features</div>
+            <table class="tbl">
+              <thead><tr><th>Column</th><th>Description</th><th>Used</th></tr></thead>
+              <tbody>
+                <tr><td>proto</td><td>Network protocol (tcp, udp, …)</td><td style="color:#69f0ae">Yes</td></tr>
+                <tr><td>service</td><td>Application service (http, ftp, …)</td><td style="color:#69f0ae">Yes</td></tr>
+                <tr><td>state</td><td>Connection state (FIN, CON, …)</td><td style="color:#69f0ae">Yes</td></tr>
+                <tr><td>attack_cat</td><td>Attack category (Fuzzers, DoS, …)</td><td style="color:#69f0ae">Yes</td></tr>
+                <tr><td>ct_srv_src</td><td>Connections to same service/src</td><td style="color:#69f0ae">Yes</td></tr>
+                <tr><td>ct_state_ttl</td><td>State/TTL correlation count</td><td style="color:#69f0ae">Yes</td></tr>
+                <tr><td>label</td><td>Binary label (0=normal, 1=attack)</td><td style="color:#00e5ff">Label</td></tr>
+                <tr><td>dur, sbytes, dbytes…</td><td>Numeric traffic stats</td><td style="color:#8892b0">Skip</td></tr>
+              </tbody>
+            </table>
+            <div class="sub" style="margin-top:10px">
+              Numeric columns are skipped — the TF-IDF vectorizer needs string tokens.
+              Download: <a href="https://research.unsw.edu.au/projects/unsw-nb15-dataset" target="_blank" style="color:#00e5ff">research.unsw.edu.au/projects/unsw-nb15-dataset</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SAMPLES -->
+    <div class="panel" id="panel-samples">
+      <div class="card">
+        <h3>&#x1F4E6; Sample Attack Payloads</h3>
+        <div class="sub">Click any payload to load it into the Encoder Studio</div>
+      </div>
+      <div id="samplesOut"></div>
+    </div>
+
+  <!-- AI WAF PANEL -->
+  <div class="panel" id="panel-aiwaf">
+    <div class="g2">
+      <div>
+        <div class="card">
+          <h3>&#x1F916; AI WAF Classifier</h3>
+          <div class="sub">Machine Learning model (TF-IDF + Logistic Regression) trained on 80+ labelled attack samples</div>
+          <label>PAYLOAD TO CLASSIFY</label>
+          <textarea id="aiPayload" placeholder="' OR 1=1 --" style="height:100px"></textarea>
+          <div class="btn-grp" style="margin-top:10px">
+            <button class="btn btn-p" onclick="aiClassify()">&#x1F916; Classify with AI</button>
+            <button class="btn btn-o" onclick="aiStats()">&#x1F4CA; Model Stats</button>
+          </div>
+        </div>
+        <div class="card" id="aiStatsCard" style="display:none">
+          <h3>&#x1F4CA; Model Statistics</h3>
+          <div id="aiStatsContent"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="min-height:340px;display:flex;flex-direction:column">
+          <h3>&#x1F4CB; AI Classification Result</h3>
+          <div id="aiResult" style="flex:1;display:flex;flex-direction:column">
+            <!-- Rich empty state with visual guidance -->
+            <div id="aiEmptyState" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px 16px;gap:16px">
+              <div style="position:relative;width:70px;height:70px">
+                <div style="position:absolute;inset:0;border-radius:50%;border:2px solid rgba(56,189,248,.25);animation:aiPing 2s ease-in-out infinite"></div>
+                <div style="position:absolute;inset:8px;border-radius:50%;border:2px solid rgba(56,189,248,.15);animation:aiPing 2s ease-in-out infinite;animation-delay:.5s"></div>
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px">&#x1F916;</div>
+              </div>
+              <div>
+                <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">AI Classifier Ready</div>
+                <div style="font-size:12px;color:var(--text2);max-width:240px;line-height:1.6">Type or paste a payload on the left, then click <strong style="color:var(--c1)">Classify with AI</strong> to see the ML verdict here.</div>
+              </div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+                <span style="font-size:11px;padding:5px 12px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);border-radius:20px;color:#f87171">&#x1F6AB; ATTACK detection</span>
+                <span style="font-size:11px;padding:5px 12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:20px;color:#34d399">&#x2705; CLEAN detection</span>
+              </div>
+              <div style="font-size:11px;color:var(--text3)">Confidence score &amp; matched signatures shown after classification</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <style>
+      @keyframes aiPing{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.2);opacity:.15}}
+      </style>
+    </div>
+  </div>
+
+  <!-- LIVE TEST PANEL -->
+  <div class="panel" id="panel-livetest">
+    <!-- Legal Disclaimer Modal -->
+    <div id="liveDisclaimerModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center">
+      <div style="background:#111827;border:1px solid rgba(239,68,68,0.5);border-radius:12px;padding:32px;max-width:500px;margin:20px">
+        <h3 style="color:#ef4444;margin-bottom:16px">&#x26A0;&#xFE0F; Legal Authorization Required</h3>
+        <p style="color:#94a3b8;margin-bottom:16px;line-height:1.6">Live Target Testing sends real HTTP requests to a web server. This is only legal if you have <strong style="color:#fff">written authorization</strong> from the target system owner.</p>
+        <p style="color:#94a3b8;margin-bottom:20px;line-height:1.6">Unauthorized use is illegal under IT Act 2000 (India), CFAA (USA), and equivalent laws worldwide.</p>
+        <label style="display:flex;align-items:center;gap:10px;color:#fff;margin-bottom:20px;cursor:pointer">
+          <input type="checkbox" id="authConfirm" style="width:18px;height:18px">
+          I confirm I have authorization to test the target system
+        </label>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-p" onclick="acceptDisclaimer()">Continue</button>
+          <button class="btn btn-o" onclick="document.getElementById('liveDisclaimerModal').style.display='none'">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <div class="g2">
+      <div>
+        <div class="card">
+          <h3>&#x1F3AF; Live Target Configuration</h3>
+          <div class="sub">Fire encoded payload variants at a real HTTP endpoint and measure WAF evasion rate</div>
+          <label>TARGET URL TEMPLATE <span style="color:#ef4444;font-size:10px">Use [PAYLOAD] placeholder</span></label>
+          <input id="liveUrlTemplate" type="text" placeholder="http://localhost:8080/search?q=[PAYLOAD]" style="width:100%;padding:10px;background:rgba(15,23,42,0.8);border:1px solid rgba(30,38,66,0.8);border-radius:8px;color:#e2e8f0;font-family:var(--mono);font-size:12px;box-sizing:border-box;margin-bottom:12px">
+          <label>PAYLOAD</label>
+          <textarea id="livePayload" placeholder="' OR 1=1 --" style="height:80px"></textarea>
+          <div class="g2" style="margin-top:10px;gap:10px">
+            <div>
+              <label>VARIANTS COUNT</label>
+              <input id="liveCount" type="number" value="15" min="1" max="100" style="width:100%;padding:8px;background:rgba(15,23,42,0.8);border:1px solid rgba(30,38,66,0.8);border-radius:6px;color:#e2e8f0">
+            </div>
+            <div>
+              <label>REQ/SEC (0.5–20)</label>
+              <input id="liveRate" type="number" value="2" min="0.5" max="20" step="0.5" style="width:100%;padding:8px;background:rgba(15,23,42,0.8);border:1px solid rgba(30,38,66,0.8);border-radius:6px;color:#e2e8f0">
+            </div>
+            <div>
+              <label>HTTP METHOD</label>
+              <select id="liveMethod" style="width:100%;padding:8px;background:rgba(15,23,42,0.8);border:1px solid rgba(30,38,66,0.8);border-radius:6px;color:#e2e8f0">
+                <option>GET</option><option>POST</option>
+              </select>
+            </div>
+          </div>
+          <div class="btn-grp" style="margin-top:14px">
+            <button class="btn btn-p" onclick="startLiveTest()">&#x1F680; Start Live Test</button>
+            <button class="btn btn-o" onclick="validateLiveUrl()">&#x2705; Validate URL</button>
+          </div>
+          <div id="liveUrlStatus" style="margin-top:8px;font-size:11px"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <h3>&#x1F4CB; Live Test Results</h3>
+          <div id="liveSummary"></div>
+          <div id="liveResults"><div class="sub">Configure target and click Start Live Test</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /main -->
+
+  <!-- Footer -->
+  <div style="text-align:center;padding:22px 36px 30px;border-top:1px solid rgba(30,38,66,.4);margin-top:20px">
+    <p style="font-size:11px;color:rgba(91,107,153,.6);font-family:var(--mono)">
+      Payload Obfuscation &mdash; built by
+      <a href="https://github.com/Prashant9998" target="_blank" style="color:rgba(0,229,255,.5);text-decoration:none">@Prashant9998</a>
+      &middot; MIT License &middot; Use responsibly &middot; Only test systems you own or have written authorization to test
+    </p>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+function copyEl(id){navigator.clipboard.writeText(document.getElementById(id).textContent).then(function(){toast('Copied!');});}
+</script>
+<script src="/static/app.js"></script>
+</body>
+</html>

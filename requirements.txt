@@ -1,0 +1,9 @@
+flask
+requests
+scikit-learn
+gunicorn
+fpdf
+matplotlib
+numpy
+psutil
+xgboost
