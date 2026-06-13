@@ -11,6 +11,7 @@ Manual WAF bypass testing is tedious: encode a payload by hand, paste it into Bu
 
 Started as a 200-line script. Added a WAF engine to catch variants in-house. Added a web UI because nobody wants to touch a CLI mid-engagement. Added a decoder to reverse-engineer unfamiliar encoded payloads. Now it does all of that in one place.
 
+
 ---
 
 ## Tool Scope & Focus
